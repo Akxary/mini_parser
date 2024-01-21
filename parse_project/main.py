@@ -1,3 +1,4 @@
+from matplotlib.ticker import MultipleLocator
 from bs4 import BeautifulSoup as bs
 import os
 from pathlib import Path
@@ -8,7 +9,7 @@ import requests
 from datetime import time, datetime
 
 src_file = Path("data_to_parse.html")
-filt_list = ["Армения", "Германия", "Тбилиси"]
+filt_list = ["Армения", "Германия", "Тбилиси", "США", "Франция"]
 parse_url = "https://nadezhdin2024.ru/addresses"
 headers = {
     "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.28 Safari/537.36"
@@ -23,24 +24,26 @@ def load_data() -> str:
 
 def find_all_data_by_region(in_data: str) -> pd.DataFrame:  # list[tuple[str, str]]
     bs_data = bs(in_data, "html.parser")
-    df = pd.DataFrame(
-        list(
-            zip(
-                filter(
-                    lambda y: y not in filt_list,
-                    map(
-                        lambda x: x.text,
-                        bs_data.find_all("h3", {"class": "subheading"}),
-                    ),
-                ),
-                map(
-                    lambda x: x.find("div", {"class": "progressbar__el__texts"})
-                    .find("span", {"class": "progressbar__el__text"})
-                    .text,
-                    bs_data.find_all("div", {"class": "progressbar__el"}),
-                ),
+    pre_df_list: list[tuple[str, str]] = []
+    for el in bs_data.find_all("div", {"class": "addresses-page__region"}):
+        name_el = (
+            el.find("div", {"class": "card region-card region-card--addresses-page"})
+            .find("h3", {"class": "subheading"})
+            .text
+        )
+        stat_el = el.find("div", {"class": "progressbar addresses-page__progressbar"})
+        if stat_el:
+            stat_el = (
+                stat_el.find("div", {"class": "progressbar__el"})
+                .find("div", {"class": "progressbar__el__texts"})
+                .find("span", {"class": "progressbar__el__text"})
+                .text
             )
-        ),
+        else:
+            stat_el = "-"
+        pre_df_list.append((name_el, stat_el))
+    df = pd.DataFrame(
+        pre_df_list,
         columns=["Город", "Собрано"],
     )
     df["Число собранных"] = df["Собрано"].apply(
@@ -55,6 +58,9 @@ def find_all_data_by_region(in_data: str) -> pd.DataFrame:  # list[tuple[str, st
 if __name__ == "__main__":
     try:
         html_data = load_data()
+        with open(src_file, encoding="utf-8", mode='w') as f:
+            f.write(html_data)
+        print("HTML file updated")
     except Exception as exp:
         print("Network exeption occured: ", exp)
         with open(src_file, encoding="utf-8") as f:
@@ -64,7 +70,8 @@ if __name__ == "__main__":
     df = df.set_index("Город")
     ax = df[["Число собранных", "Число несобранных"]].plot.bar(
         stacked=True
-    )  # (x="Город", y="Число собранных")
+    )
+    ax.yaxis.set_minor_locator(MultipleLocator(250))
     ax.grid(axis="y")
     fig = ax.get_figure()
     _time = datetime.now().strftime(r"%Y-%m-%d %H:%M:%S")
