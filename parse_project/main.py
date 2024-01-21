@@ -24,7 +24,7 @@ def load_data() -> str:
 
 def find_all_data_by_region(in_data: str) -> pd.DataFrame:  # list[tuple[str, str]]
     bs_data = bs(in_data, "html.parser")
-    pre_df_list: list[tuple[str, str]] = []
+    pre_df_list: list[tuple[str, str, bool]] = []
     for el in bs_data.find_all("div", {"class": "addresses-page__region"}):
         name_el = (
             el.find("div", {"class": "card region-card region-card--addresses-page"})
@@ -33,6 +33,7 @@ def find_all_data_by_region(in_data: str) -> pd.DataFrame:  # list[tuple[str, st
         )
         stat_el = el.find("div", {"class": "progressbar addresses-page__progressbar"})
         if stat_el:
+            out_flg = False
             stat_el = (
                 stat_el.find("div", {"class": "progressbar__el"})
                 .find("div", {"class": "progressbar__el__texts"})
@@ -40,17 +41,21 @@ def find_all_data_by_region(in_data: str) -> pd.DataFrame:  # list[tuple[str, st
                 .text
             )
         else:
+            out_flg = True
             stat_el = "-"
-        pre_df_list.append((name_el, stat_el))
+        pre_df_list.append((name_el, stat_el, out_flg))
     df = pd.DataFrame(
         pre_df_list,
-        columns=["Город", "Собрано"],
+        columns=["Город", "Собрано", "out_flg"],
     )
     df["Число собранных"] = df["Собрано"].apply(
         lambda x: int(re.findall(r"\d+", x)[0]) if re.findall(r"\d+", x) else 0
     )
-    df["Число несобранных"] = df["Число собранных"].apply(
-        lambda x: max_per_region - x if x <= max_per_region else 0
+    df["Число несобранных"] = df[["Число собранных", "out_flg"]].apply(
+        lambda x: max_per_region - x["Число собранных"]
+        if (x["Число собранных"] <= max_per_region or x["out_flg"])
+        else 0,
+        axis=1,
     )
     return df
 
@@ -58,7 +63,7 @@ def find_all_data_by_region(in_data: str) -> pd.DataFrame:  # list[tuple[str, st
 if __name__ == "__main__":
     try:
         html_data = load_data()
-        with open(src_file, encoding="utf-8", mode='w') as f:
+        with open(src_file, encoding="utf-8", mode="w") as f:
             f.write(html_data)
         print("HTML file updated")
     except Exception as exp:
@@ -68,11 +73,9 @@ if __name__ == "__main__":
 
     df = find_all_data_by_region(html_data)
     df = df.set_index("Город")
-    ax = df[["Число собранных", "Число несобранных"]].plot.bar(
-        stacked=True
-    )
+    ax = df[["Число собранных", "Число несобранных"]].plot.bar(stacked=True)
     ax.yaxis.set_minor_locator(MultipleLocator(250))
-    ax.grid(axis="y")
+    ax.grid(axis="y", which="both")
     fig = ax.get_figure()
     _time = datetime.now().strftime(r"%Y-%m-%d %H:%M:%S")
     if fig:
@@ -80,7 +83,7 @@ if __name__ == "__main__":
             "На {} всего собрано: {:_.0f} / {:_.0f}".format(
                 _time,
                 df["Число собранных"].sum(),
-                df["Число собранных"]
+                df.query("`out_flg`==False")["Число собранных"]
                 .apply(lambda x: x if x <= max_per_region else max_per_region)
                 .sum()
                 + df["Число несобранных"].sum(),
