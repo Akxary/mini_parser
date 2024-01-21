@@ -15,6 +15,7 @@ headers = {
     "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.28 Safari/537.36"
 }
 max_per_region: int = 2_500
+min_sum: int = 100_000
 
 
 def load_data() -> str:
@@ -51,13 +52,16 @@ def find_all_data_by_region(in_data: str) -> pd.DataFrame:  # list[tuple[str, st
     df["Число собранных"] = df["Собрано"].apply(
         lambda x: int(re.findall(r"\d+", x)[0]) if re.findall(r"\d+", x) else 0
     )
+    df["Зачтено"] = df["Число собранных"].apply(
+        lambda x: x if x <= max_per_region else max_per_region
+    )
     df["Число несобранных"] = df[["Число собранных", "out_flg"]].apply(
-        lambda x: max_per_region - x["Число собранных"]
-        if (x["Число собранных"] <= max_per_region or x["out_flg"])
-        else 0,
+        lambda x: 0
+        if (x["out_flg"] or (x["Число собранных"] >= max_per_region))
+        else max_per_region - x["Число собранных"],
         axis=1,
     )
-    return df
+    return df[df["out_flg"]==False]
 
 
 if __name__ == "__main__":
@@ -78,15 +82,11 @@ if __name__ == "__main__":
     ax.grid(axis="y", which="both")
     fig = ax.get_figure()
     _time = datetime.now().strftime(r"%Y-%m-%d %H:%M:%S")
+    _fixed = df["Зачтено"].sum()
     if fig:
         fig.suptitle(
-            "На {} всего собрано: {:_.0f} / {:_.0f}".format(
-                _time,
-                df["Число собранных"].sum(),
-                df.query("`out_flg`==False")["Число собранных"]
-                .apply(lambda x: x if x <= max_per_region else max_per_region)
-                .sum()
-                + df["Число несобранных"].sum(),
+            "На {} всего собрано: {:_.0f}. Зачтено: {:_.0f}. Осталось собрать: {:_.0f}".format(
+                _time, df["Число собранных"].sum(), _fixed, min_sum - _fixed
             )
         )
     plt.tight_layout()
