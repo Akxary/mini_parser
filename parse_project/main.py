@@ -61,7 +61,7 @@ def find_all_data_by_region(in_data: str) -> pd.DataFrame:  # list[tuple[str, st
         else max_per_region - x["Число собранных"],
         axis=1,
     )
-    return df[df["out_flg"]==False]
+    return df[df["out_flg"] == False]
 
 
 if __name__ == "__main__":
