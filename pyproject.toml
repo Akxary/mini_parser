@@ -10,6 +10,7 @@ python = "^3.11"
 requests = "^2.31.0"
 pandas = "^2.2.0"
 matplotlib = "^3.8.2"
+bs4 = "^0.0.2"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.12.1"
