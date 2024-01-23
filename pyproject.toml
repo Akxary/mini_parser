@@ -12,6 +12,8 @@ pandas = "^2.2.0"
 matplotlib = "^3.8.2"
 bs4 = "^0.0.2"
 pyarrow = "^15.0.0"
+plotly = "^5.18.0"
+streamlit = "^1.30.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.12.1"

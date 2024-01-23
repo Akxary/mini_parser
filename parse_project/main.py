@@ -1,12 +1,12 @@
 from matplotlib.ticker import MultipleLocator
 from bs4 import BeautifulSoup as bs
-import os
 from pathlib import Path
 import pandas as pd
 import re
 import matplotlib.pyplot as plt
 import requests
-from datetime import time, datetime
+from datetime import datetime
+import sys
 
 src_file = Path("data_to_parse.html")
 filt_list = ["Армения", "Германия", "Тбилиси", "США", "Франция"]
@@ -22,6 +22,13 @@ def load_data() -> str:
     session = requests.session()
     return session.get(parse_url, headers=headers).text
 
+def save_data(inp: str):
+    with open(src_file, encoding="utf-8", mode="w") as f:
+        f.write(inp)
+
+def read_data() -> str:
+    with open(src_file, encoding="utf-8") as f:
+        return "".join(f.readlines())
 
 def find_all_data_by_region(in_data: str) -> pd.DataFrame:  # list[tuple[str, str]]
     bs_data = bs(in_data, "html.parser")
@@ -65,15 +72,18 @@ def find_all_data_by_region(in_data: str) -> pd.DataFrame:  # list[tuple[str, st
 
 
 if __name__ == "__main__":
-    try:
-        html_data = load_data()
-        with open(src_file, encoding="utf-8", mode="w") as f:
-            f.write(html_data)
-        print("HTML file updated")
-    except Exception as exp:
-        print("Network exeption occured: ", exp)
-        with open(src_file, encoding="utf-8") as f:
-            html_data = "".join(f.readlines())
+    flg:bool = bool(sys.argv[1])
+    if flg:
+        try:
+            html_data = load_data()
+            save_data(html_data)
+            print("HTML file updated")
+        except Exception as exp:
+            print("Network exeption occured: ", exp)
+            html_data = read_data()
+    else:
+        html_data = read_data()
+            
 
     df = find_all_data_by_region(html_data)
     df = df.set_index("Город")
