@@ -1,30 +1,29 @@
 from datetime import datetime
 import streamlit as st
-import pandas as pd
 import plotly.express as px
+from copy import deepcopy
+import pandas as pd
+
 # to use dashboard: streamlit run .\parse_project\dashboard.py
 
 # import seaborn as sns
-from main import (
+from main_funcs import (
     find_all_data_by_region,
-    src_file,
-    load_data,
-    save_data,
-    read_data,
+    update_input_data,
     min_sum,
 )
 
 
-if __name__ == "__main__":
-    try:
-        html_data = load_data()
-        save_data(html_data)
-    except Exception as ex:
-        print("HTTP ex occured: ", ex)
-        html_data = read_data()
 
-    # df = sns.load_dataset('titanic')
-    df = find_all_data_by_region(html_data)
+
+if __name__ == "__main__":
+    def button_callback():
+        global df, dttm
+        sub_str, dttm = update_input_data()
+        df = find_all_data_by_region(sub_str)
+    
+    sub_str, dttm = update_input_data()
+    df = find_all_data_by_region(sub_str)
     df = df.set_index("Город")
     df["grp"] = df["Число собранных"].apply(
         lambda x: ">=2500"
@@ -43,7 +42,14 @@ if __name__ == "__main__":
         default=_list_to_select,
     )
     # st.select_slider('abc', options=df.index.to_numpy())
-    df_f = df.query(f"`grp`.isin({selection})")
+    if selection:
+        df_f = df.query(f"`grp`.isin({selection})")
+    else:
+        df_f = deepcopy(df)
+    input_towns = st.multiselect("Поиск городов", df_f.index)
+    if input_towns:
+        df_f = df_f.loc[list(filter(lambda x: x in input_towns, df.index))]
+
     fig = px.histogram(
         df_f[["Число собранных", "Число несобранных"]],
         x=df_f.index,
@@ -54,7 +60,7 @@ if __name__ == "__main__":
     _fixed = df["Зачтено"].sum()
     st.text(
         "На {}\nВсего собрано: {:_.0f}\nЗачтено: {:_.0f}\nОсталось собрать: {:_.0f}".format(
-            datetime.now().strftime(r"%Y-%m-%d %H:%M:%S"),
+            dttm,
             df["Число собранных"].sum(),
             _fixed,
             min_sum - _fixed,
@@ -62,5 +68,6 @@ if __name__ == "__main__":
             "_", " "
         )
     )
+    st.button('Обновить данные', on_click=button_callback)
     st.plotly_chart(fig, use_container_width=True)
     st.dataframe(df_f[filter(lambda x: x not in ("out_flg", "grp"), df.columns)])

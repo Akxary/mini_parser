@@ -17,18 +17,32 @@ headers = {
 max_per_region: int = 2_500
 min_sum: int = 150_000
 
+def update_input_data() -> tuple[str, str]:
+    try:
+        html_data = load_data()
+        dttm = str(datetime.now().strftime(r'%Y-%m-%d %H:%M:%S'))
+        save_data(html_data)
+    except Exception as ex:
+        print("HTTP ex occured: ", ex)
+        html_data, dttm = read_data()
+    return html_data, dttm
 
 def load_data() -> str:
     session = requests.session()
     return session.get(parse_url, headers=headers).text
 
-def save_data(inp: str):
-    with open(src_file, encoding="utf-8", mode="w") as f:
-        f.write(inp)
 
-def read_data() -> str:
+def save_data(inp: str, dttm: str = str(datetime.now().strftime(r'%Y-%m-%d %H:%M:%S'))):
+    with open(src_file, encoding="utf-8", mode="w") as f:
+        f.write(f"[time: {dttm}]"+'\n' + inp)
+
+
+def read_data() -> tuple[str, str]:
     with open(src_file, encoding="utf-8") as f:
-        return "".join(f.readlines())
+        read_strs = f.readlines()
+        dttm = read_strs[0].removeprefix("[time: ").rstrip("]\n")
+        return "".join(read_strs[1:]), dttm
+
 
 def find_all_data_by_region(in_data: str) -> pd.DataFrame:  # list[tuple[str, str]]
     bs_data = bs(in_data, "html.parser")
@@ -72,7 +86,7 @@ def find_all_data_by_region(in_data: str) -> pd.DataFrame:  # list[tuple[str, st
 
 
 if __name__ == "__main__":
-    flg:bool = bool(sys.argv[1])
+    flg: bool = bool(sys.argv[1])
     if flg:
         try:
             html_data = load_data()
@@ -83,7 +97,6 @@ if __name__ == "__main__":
             html_data = read_data()
     else:
         html_data = read_data()
-            
 
     df = find_all_data_by_region(html_data)
     df = df.set_index("Город")
