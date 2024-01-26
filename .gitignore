@@ -1,3 +1,4 @@
 .vscode
 t-venv
 parse_project/__pycache__
+data_to_parse.html
