@@ -17,24 +17,26 @@ headers = {
 max_per_region: int = 2_500
 min_sum: int = 150_000
 
+
 def update_input_data() -> tuple[str, str]:
     try:
         html_data = load_data()
-        dttm = str(datetime.now().strftime(r'%Y-%m-%d %H:%M:%S'))
+        dttm = str(datetime.now().strftime(r"%Y-%m-%d %H:%M:%S"))
         save_data(html_data)
     except Exception as ex:
         print("HTTP ex occured: ", ex)
         html_data, dttm = read_data()
     return html_data, dttm
 
+
 def load_data() -> str:
     session = requests.session()
     return session.get(parse_url, headers=headers).text
 
 
-def save_data(inp: str, dttm: str = str(datetime.now().strftime(r'%Y-%m-%d %H:%M:%S'))):
+def save_data(inp: str, dttm: str = str(datetime.now().strftime(r"%Y-%m-%d %H:%M:%S"))):
     with open(src_file, encoding="utf-8", mode="w") as f:
-        f.write(f"[time: {dttm}]"+'\n' + inp)
+        f.write(f"[time: {dttm}]" + "\n" + inp)
 
 
 def read_data() -> tuple[str, str]:
@@ -86,17 +88,11 @@ def find_all_data_by_region(in_data: str) -> pd.DataFrame:  # list[tuple[str, st
 
 
 if __name__ == "__main__":
-    flg: bool = bool(sys.argv[1])
+    flg: bool = False if sys.argv[1] == '0' else True
     if flg:
-        try:
-            html_data = load_data()
-            save_data(html_data)
-            print("HTML file updated")
-        except Exception as exp:
-            print("Network exeption occured: ", exp)
-            html_data = read_data()
+        html_data, dttm = update_input_data()
     else:
-        html_data = read_data()
+        html_data, dttm = read_data()
 
     df = find_all_data_by_region(html_data)
     df = df.set_index("Город")
@@ -104,12 +100,11 @@ if __name__ == "__main__":
     ax.yaxis.set_minor_locator(MultipleLocator(250))
     ax.grid(axis="y", which="both")
     fig = ax.get_figure()
-    _time = datetime.now().strftime(r"%Y-%m-%d %H:%M:%S")
     _fixed = df["Зачтено"].sum()
     if fig:
         fig.suptitle(
             "На {} всего собрано: {:_.0f}. Зачтено: {:_.0f}. Осталось собрать: {:_.0f}".format(
-                _time, df["Число собранных"].sum(), _fixed, min_sum - _fixed
+                dttm, df["Число собранных"].sum(), _fixed, min_sum - _fixed
             )
         )
     plt.tight_layout()
